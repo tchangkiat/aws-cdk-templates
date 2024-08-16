@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx
+  namespace: nginx
   labels:
     app.kubernetes.io/name: nginx
 spec:
@@ -14,9 +15,14 @@ spec:
       labels:
         app.kubernetes.io/name: nginx
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
       containers:
         - name: nginx
-          image: nginx:latest
+          image: nginx@sha256:f9c14fe76c502f4d49d0f0d5842b813d8bd7fd7b12c005eb31c4b9f8ae67f825  # Changed to use digest
+          imagePullPolicy: Always  # Added imagePullPolicy
           resources:
             limits:
               cpu: "0.5"
@@ -26,6 +32,26 @@ spec:
               memory: "500Mi"
           ports:
             - containerPort: 80
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 10001  # Changed to a higher UID
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
